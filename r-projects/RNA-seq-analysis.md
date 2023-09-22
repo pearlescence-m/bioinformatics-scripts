@@ -1,21 +1,25 @@
 # RNA-seq Analysis
-> Exercises and solutions for Chapter 8 of https://compgenomr.github.io/book/
+
+> Exercises and solutions for Chapter 8 of <https://compgenomr.github.io/book/>
+
+Here we will use a subset of the RNA-seq count table from a colorectal cancer study. We have filtered the original count table for only protein-coding genes (to improve the speed of calculation) and also selected only five metastasized colorectal cancer samples along with five normal colon samples. There is an additional column width that contains the length of the corresponding gene in the unit of base pairs. The length of the genes are important to compute RPKM and TPM values. The original count tables can be found from the [recount2 database](https://jhubiostatistics.shinyapps.io/recount/) using the SRA project code SRP029880, and the experimental setup along with other accessory information can be found from the NCBI Trace archive using the SRA project code [SRP029880](https://trace.ncbi.nlm.nih.gov/Traces/index.html?study=SRP029880).
 
 ### 1. Exploring the count tables
 
-Here, import an example count table and do some exploration of the expression data. 
+Here, import an example count table and do some exploration of the expression data.
 
-```{r exSetup1, eval=FALSE}
+``` {.r echo="FALSE," eval="FALSE"}
 counts_file <- system.file("extdata/rna-seq/SRP029880.raw_counts.tsv",
                            package = "compGenomRData")
 coldata_file <- system.file("extdata/rna-seq/SRP029880.colData.tsv", 
                             package = "compGenomRData")
 ```
 
-1. Normalize the counts using the TPM approach.
+1.  Normalize the counts using the TPM approach.
 
 **solution:**
-  ```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 counts <- as.matrix(read.table(counts_file, header = T, sep = '\t'))
 
 geneLengths <- as.vector(subset(counts, select = c(width)))
@@ -27,13 +31,13 @@ rpk <- apply( subset(counts, select = c(-width)), 2,
 #normalize by the sample size using rpk values
 tpm <- apply(rpk, 2, function(x) x / sum(as.numeric(x)) * 10^6)
 colSums(tpm)
-
 ```
 
-2. Plot a heatmap of the top 500 most variable genes. Compare with the heatmap obtained using the 100 most variable genes.
+2.  Plot a heatmap of the top 500 most variable genes. Compare with the heatmap obtained using the 100 most variable genes.
 
 **solution:**
-  ```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 #compute the variance of each gene across samples
 V <- apply(tpm, 1, var)
 
@@ -44,39 +48,37 @@ selectedGenes100 <- names(V[order(V, decreasing = T)][1:100])
 library(pheatmap)
 pheatmap(tpm[selectedGenes500,], scale = 'row', show_rownames = FALSE)
 pheatmap(tpm[selectedGenes100,], scale = 'row', show_rownames = FALSE)
-
 ```
 
-3. Re-do the heatmaps setting the `scale` argument to `none`, and `column`. Compare the results with `scale = 'row'`.
+3.  Re-do the heatmaps setting the `scale` argument to `none`, and `column`. Compare the results with `scale = 'row'`.
 
 **solution:**
-  ```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 pheatmap(tpm[selectedGenes500,], scale = 'none', show_rownames = FALSE)
 pheatmap(tpm[selectedGenes500,], scale = 'column', show_rownames = FALSE)
 pheatmap(tpm[selectedGenes100,], scale = 'column', show_rownames = FALSE)
 pheatmap(tpm[selectedGenes100,], scale = 'none', show_rownames = FALSE)
-
 ```
 
-4. Draw a correlation plot for the samples depicting the sample differences as 'ellipses', drawing only the upper end of the matrix, and order samples by hierarchical clustering results based on `average` linkage clustering method.
+4.  Draw a correlation plot for the samples depicting the sample differences as 'ellipses', drawing only the upper end of the matrix, and order samples by hierarchical clustering results based on `average` linkage clustering method.
 
 **solution:**
-  ```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 library(stats)
 correlationMatrix <- cor(tpm)
 
 library(corrplot)
 corrplot(correlationMatrix, method='ellipse', type='upper', order = 'hclust', 
          hclust.method = c("average")) 
-
 ```
 
-5. How else could the count matrix be subsetted to obtain quick and accurate clusters? 
-  Try selecting the top 100 genes that have the highest total expression in all samples 
-and re-draw the cluster heatmaps and PCA plots.
+5.  How else could the count matrix be subsetted to obtain quick and accurate clusters? Try selecting the top 100 genes that have the highest total expression in all samples and re-draw the cluster heatmaps and PCA plots.
 
 **solution:**
-  ```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 #total expression in top 100 genes
 TE <- rowSums(tpm)
 top_100_genes <- names(TE[order(TE, decreasing = TRUE)][1:100])
@@ -100,13 +102,13 @@ pcaResults <- prcomp(M)
 
 autoplot(pcaResults, data = colData, colour = 'group')
 summary(pcaResults)
-
 ```
 
-6. Add an additional column to the annotation data.frame object to annotate the samples and use the updated annotation data.frame to plot the heatmaps. (Hint: Assign different batch values to CASE and CTRL samples). Make a PCA plot and color samples by the added variable (e.g. batch).
+6.  Add an additional column to the annotation data.frame object to annotate the samples and use the updated annotation data.frame to plot the heatmaps. (Hint: Assign different batch values to CASE and CTRL samples). Make a PCA plot and color samples by the added variable (e.g. batch).
 
 **solution:**
-  ```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 #extract batches
 colData$batch <- as.numeric(sub("\\D+", "", rownames(colData)))
 
@@ -118,22 +120,22 @@ pcaResults <- prcomp(M)
 
 autoplot(pcaResults, data = colData, colour = 'batch')
 summary(pcaResults)
-
 ```
 
-7. Try making the heatmaps using all the genes in the count table, rather than sub-selecting. 
+7.  Try making the heatmaps using all the genes in the count table, rather than sub-selecting.
 
 **solution:**
-  ```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 
 pheatmap(tpm, scale = 'row', show_rownames = FALSE, annotation_col = colData)
-
 ```
 
-8. Use the [`Rtsne` package](https://cran.r-project.org/web/packages/Rtsne/Rtsne.pdf) to draw a t-SNE plot of the expression values. Color the points by sample group. Compare the results with the PCA plots.
+8.  Use the [`Rtsne` package](https://cran.r-project.org/web/packages/Rtsne/Rtsne.pdf) to draw a t-SNE plot of the expression values. Color the points by sample group. Compare the results with the PCA plots.
 
 **solution:**
-  ```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 library(Rtsne)
 
 tpm_unique <- unique(tpm) # Remove duplicates
@@ -150,28 +152,25 @@ set.seed(42)
 tsne_out <- Rtsne(tpm_matrix,pca=FALSE,theta=0.0) # Run TSNE
 
 plot(tsne_out$Y,col=tpm_df$geneName, asp=1)
-
 ```
-
 
 ### 2. Differential expression analysis
 
-Firstly, carry out a differential expression analysis starting from raw counts.
-Use the following datasets:
-  
-  ```
+Firstly, carry out a differential expression analysis starting from raw counts. Use the following datasets:
+
+``` {.r echo="FALSE,eval=FALSE"}
 counts_file <- system.file("extdata/rna-seq/SRP029880.raw_counts.tsv", 
-                           package = "compGenomRData")
+                         package = "compGenomRData")
 coldata_file <- system.file("extdata/rna-seq/SRP029880.colData.tsv", 
-                            package = "compGenomRData")
+                          package = "compGenomRData")
 ```
 
-- Import the read counts and colData tables.
-- Set up a DESeqDataSet object.
-- Filter out genes with low counts.
-- Run DESeq2 contrasting the `CASE` sample with `CONTROL` samples. 
+-   Import the read counts and colData tables.
+-   Set up a DESeqDataSet object.
+-   Filter out genes with low counts.
+-   Run DESeq2 contrasting the `CASE` sample with `CONTROL` samples.
 
-```{r,echo=FALSE,eval=FALSE}
+``` {.r echo="FALSE,eval=FALSE"}
 #remove the 'width' column
 counts <- as.matrix(read.table(counts_file, header = T, sep = '\t'))
 countData <- as.matrix(subset(counts, select = c(-width)))
@@ -189,15 +188,15 @@ dds <- DESeqDataSetFromMatrix(countData = countData,
                               design = as.formula(designFormula))
 #print dds object to see the contents
 print(dds)
-
 ```
 
-Now, you are ready to do the following exercises: 
-  
-  1. Make a volcano plot using the differential expression analysis results. (Hint: x-axis denotes the log2FoldChange and the y-axis represents the -log10(pvalue)). 
-  
+Now, you are ready to do the following exercises:
+
+1.  Make a volcano plot using the differential expression analysis results. (Hint: x-axis denotes the log2FoldChange and the y-axis represents the -log10(pvalue)).
+
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 
 #For each gene, we count the total number of reads for that gene in all samples 
 #and remove those that don't have at least 1 read. 
@@ -222,51 +221,53 @@ ggplot(as.data.frame(DEresults), aes(x = log2FoldChange, y = log10_pvalue)) +
   labs(x = "log2 Fold Change", y = "-log10(p-value)") +
   theme_minimal() +
   theme(legend.position = "none") 
-
 ```
 
-2. Use DESeq2::plotDispEsts to make a dispersion plot and find out the meaning of this plot. (Hint: Type ?DESeq2::plotDispEsts) 
+2.  Use DESeq2::plotDispEsts to make a dispersion plot and find out the meaning of this plot. (Hint: Type ?DESeq2::plotDispEsts)
 
 **solution:**
-  ```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 plotDispEsts(dds)
-
 ```
 
-3. Explore `lfcThreshold` argument of the `DESeq2::results` function. What is its default value? What does it mean to change the default value to, for instance, `1`? 
+3.  Explore `lfcThreshold` argument of the `DESeq2::results` function. What is its default value? What does it mean to change the default value to, for instance, `1`?
 
 **solution:**
-  ```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 # Extract results with a log2 fold change threshold of 1
 result_1 <- results(dds, lfcThreshold = 1)
 
 # Extract results with the default log2 fold change threshold (0)
 result_default <- results(dds)
-
 ```
+
 In the example above, result_1 will contain only genes with an absolute log2 fold change of 1 or higher, while result_default will include all genes regardless of their log2 fold change.
 
 Changing the lfcThreshold allows to focus on genes that exhibit larger changes in expression, which can be useful when you are primarily interested in highly differentially expressed genes and want to filter out genes with smaller changes that may not be biologically significant for analysis.
 
-4. What is independent filtering? What happens if we don't use it? Google `independent filtering statquest` and watch the online video about independent filtering.
+4.  What is independent filtering? What happens if we don't use it? Google `independent filtering statquest` and watch the online video about independent filtering.
 
-Independent filtering is a statistical technique used to improve the accuracy of results and reduce the number of false positives while still maintaining reasonable statistical power.
-Here's a simplified overview of how independent filtering works:
+Independent filtering is a statistical technique used to improve the accuracy of results and reduce the number of false positives while still maintaining reasonable statistical power. Here's a simplified overview of how independent filtering works:
 
-    Calculate p-values for each gene based on statistical tests (e.g., negative binomial tests for RNA-seq data).
+```         
+Calculate p-values for each gene based on statistical tests (e.g., negative binomial tests for RNA-seq data).
 
-    Rank genes by p-value.
+Rank genes by p-value.
 
-    Consider additional information, such as the fold change and gene expression levels. Genes with very low expression levels or very small fold changes may be less likely to be biologically meaningful.
+Consider additional information, such as the fold change and gene expression levels. Genes with very low expression levels or very small fold changes may be less likely to be biologically meaningful.
 
-    Apply a more relaxed p-value threshold (higher than the initial threshold) to genes that meet certain criteria (e.g., larger fold change or higher expression levels).
+Apply a more relaxed p-value threshold (higher than the initial threshold) to genes that meet certain criteria (e.g., larger fold change or higher expression levels).
 
-    Retain the genes that pass the adjusted threshold as differentially expressed.
+Retain the genes that pass the adjusted threshold as differentially expressed.
+```
 
-5. Re-do the differential expression analysis using the `edgeR` package. Find out how much DESeq2 and edgeR agree on the list of differentially expressed genes.
+5.  Re-do the differential expression analysis using the `edgeR` package. Find out how much DESeq2 and edgeR agree on the list of differentially expressed genes.
 
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 library(edgeR)
 
 # Create a DGEList object
@@ -305,10 +306,11 @@ cat("Percentage agreement between DESeq2 and edgeR:", agreement * 100, "%\n")
  
 ```
 
-6. Use the `compcodeR` package to run the differential expression analysis using at least three different tools and compare and contrast the results following the `compcodeR` vignette.
+6.  Use the `compcodeR` package to run the differential expression analysis using at least three different tools and compare and contrast the results following the `compcodeR` vignette.
 
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 library(compcodeR)
 colnames(colData)<-c("condition", "group")
 comp_data <- compData(count.matrix=countData, sample.annotations=colData, 
@@ -347,13 +349,13 @@ runComparison(file.table = file.table, parameters = parameters, output.directory
  
 ```
 
-
 ### 3. Functional enrichment analysis
 
-1. Re-run gProfileR, this time using pathway annotations such as KEGG, REACTOME, and protein complex databases such as CORUM, in addition to the GO terms. Sort the resulting tables by columns `precision` and/or `recall`. How do the top GO terms change when sorted for `precision`, `recall`, or `p.value`? 
+1.  Re-run gProfileR, this time using pathway annotations such as KEGG, REACTOME, and protein complex databases such as CORUM, in addition to the GO terms. Sort the resulting tables by columns `precision` and/or `recall`. How do the top GO terms change when sorted for `precision`, `recall`, or `p.value`?
 
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 library(DESeq2)
 library(gProfileR)
 library(knitr)
@@ -396,78 +398,84 @@ goResults_by_pvalue <- goResults[order(goResults$p.value),]
  
 ```
 
-2. Repeat the gene set enrichment analysis by trying different options for the `compare` argument of the `GAGE:gage`
-function. How do the results differ? 
+2.  Repeat the gene set enrichment analysis by trying different options for the `compare` argument of the `GAGE:gage` function. How do the results differ?
 
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 #gprofiler doesn't work - coming soon
-
 ```
 
-3. Make a scatter plot of GO term sizes and obtained p-values by setting the `gProfiler::gprofiler` argument `significant = FALSE`. Is there a correlation of term sizes and p-values? (Hint: Take -log10 of p-values). If so, how can this bias be mitigated? 
+3.  Make a scatter plot of GO term sizes and obtained p-values by setting the `gProfiler::gprofiler` argument `significant = FALSE`. Is there a correlation of term sizes and p-values? (Hint: Take -log10 of p-values). If so, how can this bias be mitigated?
 
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 #gprofiler doesn't work - coming soon
  
 ```
 
-4. Do a gene-set enrichment analysis using gene sets from top 10 GO terms.
+4.  Do a gene-set enrichment analysis using gene sets from top 10 GO terms.
 
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 #coming soon
  
 ```
 
-5. What are the other available R packages that can carry out gene set enrichment analysis for RNA-seq datasets? 
+5.  What are the other available R packages that can carry out gene set enrichment analysis for RNA-seq datasets?
 
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 #coming soon
  
 ```
 
-6.  Use the topGO package (https://bioconductor.org/packages/release/bioc/html/topGO.html) to re-do the GO term analysis. Compare and contrast the results with what has been obtained using the `gProfileR` package. Which tool is faster, `gProfileR` or topGO? Why? 
+6.  Use the topGO package (<https://bioconductor.org/packages/release/bioc/html/topGO.html>) to re-do the GO term analysis. Compare and contrast the results with what has been obtained using the `gProfileR` package. Which tool is faster, `gProfileR` or topGO? Why?
 
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 #coming soon
  
 ```
 
-7. Given a gene set annotated for human, how can it be utilized to work on _C. elegans_ data? (Hint: See `biomaRt::getLDS`).
+7.  Given a gene set annotated for human, how can it be utilized to work on *C. elegans* data? (Hint: See `biomaRt::getLDS`).
 
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 #coming soon
  
 ```
 
-8. Import curated pathway gene sets with Entrez identifiers from the [MSIGDB database](http://software.broadinstitute.org/gsea/msigdb/collections.jsp) and re-do the GSEA for all curated gene sets. 
+8.  Import curated pathway gene sets with Entrez identifiers from the [MSIGDB database](http://software.broadinstitute.org/gsea/msigdb/collections.jsp) and re-do the GSEA for all curated gene sets.
 
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 #coming soon
  
 ```
-
 
 ### 4. Removing unwanted variation from the expression data
 
-For the exercises below, use the datasets at: 
-```
+For the exercises below, use the datasets at:
+
+```         
 counts_file <- system.file('extdata/rna-seq/SRP049988.raw_counts.tsv', 
                            package = 'compGenomRData')
 colData_file <- system.file('extdata/rna-seq/SRP049988.colData.tsv', 
                            package = 'compGenomRData')
 ```
 
-1. Run RUVSeq using multiple values of `k` from 1 to 10 and compare and contrast the PCA plots obtained from the normalized counts of each RUVSeq run. 
+1.  Run RUVSeq using multiple values of `k` from 1 to 10 and compare and contrast the PCA plots obtained from the normalized counts of each RUVSeq run.
 
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 library(EDASeq)
 library(RUVSeq)
 library(ggplot2)
@@ -508,10 +516,11 @@ for(k in 1:10) {
  
 ```
 
-2. Re-run RUVSeq using the `RUVr()` function. Compare PCA plots from `RUVs`, `RUVg` and `RUVr` using the same `k` values and find out which one performs the best.
+2.  Re-run RUVSeq using the `RUVr()` function. Compare PCA plots from `RUVs`, `RUVg` and `RUVr` using the same `k` values and find out which one performs the best.
 
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 library(edgeR)
 
 #RUVs
@@ -556,13 +565,13 @@ for(k in 1:10) {
           main = paste0('with RUVr, k = ',k), 
           ylim = c(-1, 1), xlim = c(-1, 1), )
 }
-
 ```
 
-3. Do the necessary diagnostic plots using the differential expression results from the EHF count table.
+3.  Do the necessary diagnostic plots using the differential expression results from the EHF count table.
 
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 # RLE plots
 
 par(mfrow = c(1,2))
@@ -611,12 +620,11 @@ plotPCA(set_r, col=as.numeric(colData$group), adj = 0.5,
  
 ```
 
-4. Use the `sva` package to discover sources of unwanted variation and re-do the differential expression analysis using variables from the output of `sva` and compare the results with `DESeq2` results using `RUVSeq` corrected normalization counts. 
+4.  Use the `sva` package to discover sources of unwanted variation and re-do the differential expression analysis using variables from the output of `sva` and compare the results with `DESeq2` results using `RUVSeq` corrected normalization counts.
 
 **solution:**
-```{r,echo=FALSE,eval=FALSE}
+
+``` {.r echo="FALSE,eval=FALSE"}
 #coming soon
  
 ```
-
-
